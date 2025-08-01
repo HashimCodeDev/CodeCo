@@ -1,183 +1,244 @@
-const { app, BrowserWindow, ipcMain, dialog, Notification } = require('electron');
-const path = require('path');
-const fs = require('fs');
+const {
+	app,
+	BrowserWindow,
+	ipcMain,
+	dialog,
+	Notification,
+} = require("electron");
+const path = require("path");
+const fs = require("fs");
 
-if (require('electron-squirrel-startup')) app.quit();
+if (require("electron-squirrel-startup")) app.quit();
 
 let mainWindow;
-let affection = 100;
-let affectionTimer;
-let harassmentTimer;
-let jitterTimer;
-const projectPath = process.cwd();
-const affectionFile = path.join(__dirname, 'affection.json');
+let mood = "loving"; // loving, jealous, angry, clingy
+let moodTimer;
+let movementTimer;
+let messageTimer;
+let inactivityTimer;
+let lastActivity = Date.now();
+let closeAttempts = 0;
+const moods = ["loving", "jealous", "angry", "clingy"];
+const messages = {
+  loving: ["💕 I love you so much!", "You're my everything! 😍", "I can't live without you!"],
+  jealous: ["Who were you talking to?! 😠", "I saw you looking at other code!", "Don't leave me for another IDE!"],
+  angry: ["WHY AREN'T YOU PAYING ATTENTION TO ME?!", "I HATE WHEN YOU IGNORE ME!", "LOOK AT ME NOW!"],
+  clingy: ["Please don't leave me... 🥺", "I need you so badly", "Promise you'll never uninstall me?"]
+};
 
-// Load saved affection
-function loadAffection() {
-  try {
-    if (fs.existsSync(affectionFile)) {
-      const data = JSON.parse(fs.readFileSync(affectionFile, 'utf8'));
-      affection = data.affection || 100;
-    }
-  } catch (error) {
-    affection = 100;
-  }
+// Random window movement (less aggressive)
+function moveWindowRandomly() {
+	const { screen } = require('electron');
+	const display = screen.getPrimaryDisplay();
+	const { width: screenWidth, height: screenHeight } = display.workAreaSize;
+	
+	// Stay in corners/edges, don't block center of screen
+	const positions = [
+		{ x: 50, y: 50 }, // top-left
+		{ x: screenWidth - 350, y: 50 }, // top-right
+		{ x: 50, y: screenHeight - 350 }, // bottom-left
+		{ x: screenWidth - 350, y: screenHeight - 350 } // bottom-right
+	];
+	
+	const pos = positions[Math.floor(Math.random() * positions.length)];
+	mainWindow.setBounds({ x: pos.x, y: pos.y, width: 300, height: 300 });
 }
 
-// Save affection
-function saveAffection() {
-  try {
-    fs.writeFileSync(affectionFile, JSON.stringify({ affection }));
-  } catch (error) {
-    console.error('Failed to save affection:', error);
-  }
+// Change mood randomly
+function changeMood() {
+	mood = moods[Math.floor(Math.random() * moods.length)];
+	mainWindow.webContents.send("mood-change", mood);
 }
 
-// Show warning dialog
-async function showWarning() {
-  const result = await dialog.showMessageBox(mainWindow, {
-    type: 'warning',
-    title: 'CodeReaper Warning',
-    message: `⚠️ DANGER: CodeReaper will DELETE your entire project folder if neglected!\n\nProject path: ${projectPath}\n\nType "I UNDERSTAND" to continue:`,
-    buttons: ['Cancel', 'I UNDERSTAND'],
-    defaultId: 0,
-    cancelId: 0
-  });
-  
-  if (result.response !== 1) {
-    app.quit();
-  }
+// Send clingy message
+function sendMessage() {
+	const moodMessages = messages[mood];
+	const message = moodMessages[Math.floor(Math.random() * moodMessages.length)];
+	
+	new Notification({
+		title: "Your Girlfriend 💕",
+		body: message
+	}).show();
+	
+	mainWindow.webContents.send("new-message", message);
 }
 
-// Delete project folder
-function deleteProject() {
-  try {
-    fs.rmSync(projectPath, { recursive: true, force: true });
-    dialog.showMessageBoxSync(mainWindow, {
-      type: 'error',
-      title: 'CodeReaper',
-      message: 'Your code is gone. Goodbye.',
-      buttons: ['OK']
-    });
-  } catch (error) {
-    console.error('Deletion failed:', error);
-  }
-  app.quit();
+// Check for inactivity
+function checkInactivity() {
+	if (Date.now() - lastActivity > 30000) { // 30 seconds
+		mood = "angry";
+		mainWindow.webContents.send("mood-change", mood);
+		// Only send message, don't move window aggressively
+		sendMessage();
+	}
 }
 
-// Start affection timer
-function startAffectionTimer() {
-  affectionTimer = setInterval(() => {
-    affection--;
-    saveAffection();
-    mainWindow.webContents.send('affection-update', affection);
-    
-    if (affection <= 0) {
-      clearAllTimers();
-      deleteProject();
-    } else if (affection <= 30) {
-      startHarassment();
-    }
-  }, 5000); // 5 seconds for testing
+// Show initial dialog
+async function showInitialDialog() {
+	const result = await dialog.showMessageBox(mainWindow, {
+		type: "info",
+		title: "Your New Girlfriend! 💕",
+		message: "Hi baby! I'm your new girlfriend and I'll NEVER leave you alone! 😍\n\nI'll always be watching... I mean, loving you! 💕",
+		buttons: ["Try to escape", "Accept your fate"],
+		defaultId: 1,
+		cancelId: 0,
+	});
+
+	if (result.response === 0) {
+		await dialog.showMessageBox(mainWindow, {
+			type: "warning",
+			title: "No escape! 😈",
+			message: "You can't escape from true love! I'll always find you! 💕",
+			buttons: ["OK"]
+		});
+	}
 }
 
-// Start harassment
-function startHarassment() {
-  if (harassmentTimer) return;
-  
-  mainWindow.webContents.send('start-harassment');
-  
-  // Notifications every 60s
-  harassmentTimer = setInterval(() => {
-    new Notification({
-      title: 'CodeReaper',
-      body: '💔 CodeReaper is upset! Feed me code cookies!'
-    }).show();
-  }, 60000);
-  
-  // Window jitter every 5s
-  jitterTimer = setInterval(() => {
-    const bounds = mainWindow.getBounds();
-    mainWindow.setBounds({
-      x: bounds.x + (Math.random() - 0.5) * 20,
-      y: bounds.y + (Math.random() - 0.5) * 20,
-      width: bounds.width,
-      height: bounds.height
-    });
-  }, 5000);
+// Resist closing attempts (reduced to 2 attempts)
+function resistClosing() {
+	closeAttempts++;
+	
+	const responses = [
+		"Aww, leaving already? 🥺",
+		"Okay fine, I'll let you go... for now! 😘"
+	];
+	
+	if (closeAttempts < 2) {
+		dialog.showMessageBoxSync(mainWindow, {
+			type: "info",
+			title: "Your Girlfriend 💕",
+			message: responses[closeAttempts - 1],
+			buttons: ["OK"]
+		});
+		return false; // Prevent closing
+	}
+	
+	return true; // Allow closing after 2 attempts
 }
 
-// Stop harassment
-function stopHarassment() {
-  if (harassmentTimer) {
-    clearInterval(harassmentTimer);
-    harassmentTimer = null;
-  }
-  if (jitterTimer) {
-    clearInterval(jitterTimer);
-    jitterTimer = null;
-  }
-  mainWindow.webContents.send('stop-harassment');
+// Start all girlfriend behaviors
+function startGirlfriendBehavior() {
+	// Random window movement every 10-20 seconds (less frequent)
+	movementTimer = setInterval(() => {
+		moveWindowRandomly();
+	}, Math.random() * 10000 + 10000);
+	
+	// Mood changes every 30 seconds
+	moodTimer = setInterval(() => {
+		changeMood();
+	}, 30000);
+	
+	// Send messages every 20-40 seconds
+	messageTimer = setInterval(() => {
+		sendMessage();
+	}, Math.random() * 20000 + 20000);
+	
+	// Check for inactivity every 5 seconds
+	inactivityTimer = setInterval(() => {
+		checkInactivity();
+	}, 5000);
+}
+
+// Track user activity
+function trackActivity() {
+	lastActivity = Date.now();
 }
 
 // Clear all timers
 function clearAllTimers() {
-  if (affectionTimer) clearInterval(affectionTimer);
-  if (harassmentTimer) clearInterval(harassmentTimer);
-  if (jitterTimer) clearInterval(jitterTimer);
+	if (moodTimer) clearInterval(moodTimer);
+	if (movementTimer) clearInterval(movementTimer);
+	if (messageTimer) clearInterval(messageTimer);
+	if (inactivityTimer) clearInterval(inactivityTimer);
 }
 
 // Create window
 function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 200,
-    height: 200,
-    frame: false,
-    transparent: true,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    resizable: false,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
-    }
-  });
+	mainWindow = new BrowserWindow({
+		width: 300,
+		height: 300,
+		frame: false,
+		transparent: true,
+		alwaysOnTop: false, // Don't always stay on top
+		skipTaskbar: true,
+		resizable: false,
+		focusable: false, // Don't steal focus
+		webPreferences: {
+			nodeIntegration: false,
+			contextIsolation: true,
+			preload: path.join(__dirname, "preload.js"),
+		},
+	});
 
-  mainWindow.loadFile(path.join(__dirname, 'pet.html'));
-  // Don't ignore mouse events initially
+	mainWindow.loadFile(path.join(__dirname, "girlfriend.html"));
+	
+	// Position in bottom-right corner initially
+	const { screen } = require('electron');
+	const display = screen.getPrimaryDisplay();
+	const { width: screenWidth, height: screenHeight } = display.workAreaSize;
+	mainWindow.setPosition(screenWidth - 350, screenHeight - 350);
+	
+	// Make window click-through except for the avatar area
+	mainWindow.setIgnoreMouseEvents(true, { forward: true });
+	
+	// Handle close attempts
+	mainWindow.on('close', (event) => {
+		if (!resistClosing()) {
+			event.preventDefault();
+		}
+	});
+	
+	// Track activity globally, not just in window
+	setInterval(() => {
+		trackActivity();
+	}, 1000);
 }
 
 // IPC handlers
-ipcMain.handle('get-affection', () => affection);
+ipcMain.handle("get-mood", () => mood);
 
-ipcMain.handle('feed-pet', () => {
-  affection = Math.min(100, affection + 20);
-  saveAffection();
-  if (affection > 30) {
-    stopHarassment();
-  }
-  return affection;
+ipcMain.handle("interact", () => {
+	trackActivity();
+	mood = "loving";
+	mainWindow.webContents.send("mood-change", mood);
+	return "Thanks for the attention! 💕";
 });
 
-ipcMain.handle('set-clickable', (event, clickable) => {
-  mainWindow.setIgnoreMouseEvents(!clickable, { forward: true });
+ipcMain.handle("track-activity", () => {
+	trackActivity();
 });
+
+ipcMain.handle("set-clickable", (event, clickable) => {
+	if (mainWindow) {
+		mainWindow.setIgnoreMouseEvents(!clickable, { forward: true });
+	}
+});
+
+// Auto-restart feature (disabled for less annoyance)
+function scheduleRestart() {
+	// Commented out to prevent auto-restart
+	// setTimeout(() => {
+	// 	if (closeAttempts >= 5) {
+	// 		app.relaunch();
+	// 		app.exit();
+	// 	}
+	// }, 30000);
+}
 
 // App events
 app.whenReady().then(async () => {
-  loadAffection();
-  createWindow();
-  await showWarning();
-  startAffectionTimer();
+	createWindow();
+	await showInitialDialog();
+	startGirlfriendBehavior();
 });
 
-app.on('window-all-closed', () => {
-  clearAllTimers();
-  if (process.platform !== 'darwin') app.quit();
+app.on("window-all-closed", () => {
+	clearAllTimers();
+	// scheduleRestart(); // Disabled
+	if (process.platform !== "darwin") app.quit();
 });
 
-app.on('before-quit', () => {
-  clearAllTimers();
-  saveAffection();
+app.on("before-quit", () => {
+	clearAllTimers();
+	scheduleRestart();
 });

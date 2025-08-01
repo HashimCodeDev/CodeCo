@@ -13,8 +13,9 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   position: relative;
+  padding-bottom: 10px;
 }
 
 #pet-sprite {
@@ -23,10 +24,12 @@ body {
   cursor: pointer;
   transition: transform 0.2s;
   pointer-events: auto;
-  position: relative;
+  position: absolute;
   z-index: 1000;
   border-radius: 10px;
   object-fit: cover;
+  left: 40px;
+  top: 20px;
 }
 
 #pet-sprite:hover {
@@ -57,4 +60,26 @@ body {
   background: linear-gradient(90deg, #ff4444 0%, #ffaa44 50%, #44ff44 100%);
   width: 100%;
   transition: width 0.3s ease;
+}
+
+#buttons {
+  margin-top: 10px;
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+button {
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  background: #ff69b4;
+  color: white;
+  border: none;
+  border-radius: 3px;
+}
+
+button:hover {
+  background: #ff1493;
 }
