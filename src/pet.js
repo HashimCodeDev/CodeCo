@@ -28,8 +28,7 @@ petSprite.addEventListener("click", async () => {
 	}, 200);
 });
 
-// Keep sprite always clickable
-window.electronAPI.setClickable(true);
+
 
 // IPC event listeners
 window.electronAPI.onAffectionUpdate((event, value) => {

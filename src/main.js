@@ -95,27 +95,7 @@ async function showInitialDialog() {
 	}
 }
 
-// Resist closing attempts (reduced to 2 attempts)
-function resistClosing() {
-	closeAttempts++;
-	
-	const responses = [
-		"Aww, leaving already? 🥺",
-		"Okay fine, I'll let you go... for now! 😘"
-	];
-	
-	if (closeAttempts < 2) {
-		dialog.showMessageBoxSync(mainWindow, {
-			type: "info",
-			title: "Your Girlfriend 💕",
-			message: responses[closeAttempts - 1],
-			buttons: ["OK"]
-		});
-		return false; // Prevent closing
-	}
-	
-	return true; // Allow closing after 2 attempts
-}
+
 
 // Start all girlfriend behaviors
 function startGirlfriendBehavior() {
@@ -179,8 +159,7 @@ function createWindow() {
 	const { width: screenWidth, height: screenHeight } = display.workAreaSize;
 	mainWindow.setPosition(screenWidth - 350, screenHeight - 350);
 	
-	// Make window click-through except for the avatar area
-	mainWindow.setIgnoreMouseEvents(true, { forward: true });
+
 	
 	// Handle close attempts
 	mainWindow.on('close', () => {
@@ -207,11 +186,7 @@ ipcMain.handle("track-activity", () => {
 	trackActivity();
 });
 
-ipcMain.handle("set-clickable", (event, clickable) => {
-	if (mainWindow) {
-		mainWindow.setIgnoreMouseEvents(!clickable, { forward: true });
-	}
-});
+
 
 ipcMain.handle("give-item", (event, item) => {
 	const affectionBonus = { rose: 15, gift: 25, chocolate: 10 };
@@ -221,16 +196,7 @@ ipcMain.handle("give-item", (event, item) => {
 	return affection;
 });
 
-// Auto-restart feature (disabled for less annoyance)
-function scheduleRestart() {
-	// Commented out to prevent auto-restart
-	// setTimeout(() => {
-	// 	if (closeAttempts >= 5) {
-	// 		app.relaunch();
-	// 		app.exit();
-	// 	}
-	// }, 30000);
-}
+
 
 // App events
 app.whenReady().then(async () => {
@@ -247,5 +213,4 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", () => {
 	clearAllTimers();
-	scheduleRestart();
 });
