@@ -50,22 +50,30 @@ window.electronAPI.onStopHarassment(() => {
 	}
 });
 
-// GSAP animations for interactions
-window.giveItem = function(item) {
+// Gift giving functionality
+window.giveItem = async function(item) {
+  const newAffection = await window.electronAPI.giveItem(item);
+  updateAffectionDisplay(newAffection);
+  
   const gf = document.getElementById('pet-sprite');
+  const messages = {
+    rose: 'Girlfriend smiles happily! 🌹',
+    gift: 'Girlfriend jumps with joy! 🎁', 
+    chocolate: 'Girlfriend blushes! 🍫'
+  };
+  
   if (item === 'rose') {
     gf.style.transform = 'scale(1.2)';
     setTimeout(() => gf.style.transform = 'scale(1)', 500);
-    alert('Girlfriend smiles happily!');
   } else if (item === 'gift') {
     gf.style.transform = 'translateY(-20px)';
     setTimeout(() => gf.style.transform = 'translateY(0)', 300);
-    alert('Girlfriend jumps with joy!');
   } else if (item === 'chocolate') {
     gf.style.transform = 'rotate(10deg)';
     setTimeout(() => gf.style.transform = 'rotate(0deg)', 300);
-    alert('Girlfriend blushes!');
   }
+  
+  alert(messages[item]);
 };
 
 // Wandering functionality

@@ -12,6 +12,7 @@ if (require("electron-squirrel-startup")) app.quit();
 
 let mainWindow;
 let mood = "loving"; // loving, jealous, angry, clingy
+let affection = 100;
 let moodTimer;
 let movementTimer;
 let messageTimer;
@@ -182,10 +183,8 @@ function createWindow() {
 	mainWindow.setIgnoreMouseEvents(true, { forward: true });
 	
 	// Handle close attempts
-	mainWindow.on('close', (event) => {
-		if (!resistClosing()) {
-			event.preventDefault();
-		}
+	mainWindow.on('close', () => {
+		clearAllTimers();
 	});
 	
 	// Track activity globally, not just in window
@@ -212,6 +211,14 @@ ipcMain.handle("set-clickable", (event, clickable) => {
 	if (mainWindow) {
 		mainWindow.setIgnoreMouseEvents(!clickable, { forward: true });
 	}
+});
+
+ipcMain.handle("give-item", (event, item) => {
+	const affectionBonus = { rose: 15, gift: 25, chocolate: 10 };
+	affection = Math.min(100, affection + affectionBonus[item]);
+	mood = "loving";
+	mainWindow.webContents.send("mood-change", mood);
+	return affection;
 });
 
 // Auto-restart feature (disabled for less annoyance)

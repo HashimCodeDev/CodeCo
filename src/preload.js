@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   interact: () => ipcRenderer.invoke('interact'),
   trackActivity: () => ipcRenderer.invoke('track-activity'),
   setClickable: (clickable) => ipcRenderer.invoke('set-clickable', clickable),
+  giveItem: (item) => ipcRenderer.invoke('give-item', item),
   onMoodChange: (callback) => ipcRenderer.on('mood-change', (event, mood) => callback(mood)),
   onNewMessage: (callback) => ipcRenderer.on('new-message', (event, message) => callback(message))
 });
