@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Your Virtual Girlfriend 💕</title>
+		<script src="https://cdn.tailwindcss.com"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+		<link rel="stylesheet" href="styles.css" />
+	</head>
+	<body
+		class="bg-gradient-to-br from-pink-100 to-purple-100 overflow-hidden select-none"
+	>
+		<div id="app" class="w-full h-screen relative">
+			<!-- Title Bar -->
+			<div
+				class="bg-gradient-to-r from-pink-500 to-purple-600 text-white p-3 flex justify-between items-center"
+			>
+				<h1 class="font-bold text-lg">💕 Jessica 💕</h1>
+				<button
+					id="close-btn"
+					class="w-8 h-8 bg-red-500 rounded-full hover:bg-red-600 flex items-center justify-center text-lg"
+				>
+					×
+				</button>
+			</div>
+
+			<!-- Main Content -->
+			<div class="flex flex-col h-full p-6">
+				<!-- Affection Meter -->
+				<div class="mb-6">
+					<div class="text-center mb-2">
+						<span class="text-sm font-medium text-gray-700"
+							>Affection Level</span
+						>
+					</div>
+					<div
+						class="w-full bg-gray-200 rounded-full h-4 relative overflow-hidden"
+					>
+						<div
+							id="affection-bar"
+							class="bg-gradient-to-r from-pink-400 to-red-500 h-4 rounded-full transition-all duration-1000 ease-out"
+							style="width: 75%"
+						></div>
+						<div class="absolute inset-0 flex items-center justify-center">
+							<span
+								id="affection-text"
+								class="text-xs font-bold text-white drop-shadow"
+								>75%</span
+							>
+						</div>
+					</div>
+					<div class="text-center mt-1">
+						<span id="affection-status" class="text-sm text-gray-600"
+							>Happy</span
+						>
+					</div>
+				</div>
+
+				<!-- Avatar Section -->
+				<div class="flex-1 flex items-center justify-center">
+					<div id="avatar-container" class="relative">
+						<div id="avatar" class="w-64 h-64 relative">
+							<!-- GIF Avatar -->
+							<div
+								class="w-full h-full rounded-full overflow-hidden border-4 border-pink-300 bg-pink-200 shadow-2xl"
+							>
+								<img
+									id="avatar-gif"
+									src="assets/gifs/happy.gif"
+									alt="Avatar"
+									class="w-full h-full object-cover"
+									onerror="this.style.display='none'; document.getElementById('avatar-fallback').style.display='flex';"
+								/>
+
+								<!-- Fallback emoji if GIF fails -->
+								<div
+									id="avatar-fallback"
+									class="w-full h-full bg-pink-300 flex items-center justify-center text-6xl"
+									style="display: none"
+								>
+									💕
+								</div>
+							</div>
+
+							<!-- Mood Effects Overlay -->
+							<div
+								id="mood-overlay"
+								class="absolute inset-0 rounded-full pointer-events-none"
+							></div>
+
+							<!-- Floating Hearts Animation -->
+							<div
+								id="hearts-container"
+								class="absolute inset-0 pointer-events-none"
+							></div>
+						</div>
+
+						<!-- Name -->
+						<div class="text-center mt-4">
+							<h2 class="text-2xl font-bold text-gray-800">Jessica</h2>
+							<p id="mood-status" class="text-lg text-pink-600">
+								Feeling Happy 😊
+							</p>
+						</div>
+					</div>
+				</div>
+
+				<!-- Action Buttons -->
+				<div class="flex justify-center space-x-4 mb-6">
+					<button id="rose-btn" class="action-btn bg-red-500 hover:bg-red-600">
+						<span class="text-3xl">🌹</span>
+						<span class="text-sm font-medium">Rose</span>
+						<span class="text-xs opacity-75">+15</span>
+					</button>
+
+					<button
+						id="gift-btn"
+						class="action-btn bg-purple-500 hover:bg-purple-600"
+					>
+						<span class="text-3xl">🎁</span>
+						<span class="text-sm font-medium">Gift</span>
+						<span class="text-xs opacity-75">+25</span>
+					</button>
+
+					<button
+						id="chocolate-btn"
+						class="action-btn bg-amber-600 hover:bg-amber-700"
+					>
+						<span class="text-3xl">🍫</span>
+						<span class="text-sm font-medium">Chocolate</span>
+						<span class="text-xs opacity-75">+20</span>
+					</button>
+				</div>
+
+				<!-- Emergency Exit (hidden) -->
+				<div id="emergency-exit" class="hidden text-center">
+					<p class="text-xs text-red-600 mb-2">
+						Emergency Exit (Triple-click avatar)
+					</p>
+					<button
+						id="force-quit"
+						class="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+					>
+						Force Quit
+					</button>
+				</div>
+			</div>
+
+			<!-- Warning Overlay (for low affection) -->
+			<div
+				id="warning-overlay"
+				class="fixed inset-0 bg-red-500 bg-opacity-20 pointer-events-none hidden animate-pulse"
+			></div>
+		</div>
+
+		<script src="app.js"></script>
+	</body>
+</html>

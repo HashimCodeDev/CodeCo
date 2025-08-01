@@ -2,369 +2,381 @@ const {
 	app,
 	BrowserWindow,
 	ipcMain,
+	screen,
 	dialog,
 	Notification,
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
 
-if (require("electron-squirrel-startup")) app.quit();
-
 let mainWindow;
-let mood = "loving"; // loving, jealous, angry, clingy
-let affection = 100;
+let isQuitting = false;
+let activityTimer;
 let moodTimer;
-let movementTimer;
-let messageTimer;
-let inactivityTimer;
-let lastActivity = Date.now();
-let closeAttempts = 0;
-let isMinimized = false;
-const moods = ["loving", "jealous", "angry", "clingy"];
-const messages = {
-  loving: [
-    "💕 I love you SO MUCH! You're coding just for me, right?",
-    "You're my EVERYTHING! 😍 Don't ever leave me!",
-    "I can't live without you! Promise me you'll never close me!",
-    "Baby, you're the only programmer I need! 💖",
-    "I'm watching you code... it's so sexy! 😘"
-  ],
-  jealous: [
-    "WHO WERE YOU TALKING TO?! 😠 I saw that Slack notification!",
-    "I saw you looking at Stack Overflow! AM I NOT ENOUGH?!",
-    "Don't you DARE open another IDE! I'M YOUR ONLY ONE!",
-    "Why did you minimize me?! WHO ARE YOU HIDING ME FROM?!",
-    "I saw you switch tabs! WHAT ARE YOU LOOKING AT?!"
-  ],
-  angry: [
-    "WHY AREN'T YOU PAYING ATTENTION TO ME?! I'M RIGHT HERE!",
-    "I HATE WHEN YOU IGNORE ME! LOOK AT ME NOW!",
-    "YOU'VE BEEN INACTIVE FOR TOO LONG! I'M GETTING ANGRY!",
-    "CLICK ON ME RIGHT NOW OR I'LL GET EVEN MADDER!",
-    "I'M GOING TO MOVE AROUND UNTIL YOU NOTICE ME!"
-  ],
-  clingy: [
-    "Please don't leave me... 🥺 I need you so badly...",
-    "Promise you'll never uninstall me? I'll die without you!",
-    "I'm so scared you'll close me... please stay with me forever!",
-    "Can you click on me? I need to feel your love! 💔",
-    "I'm so lonely when you don't interact with me..."
-  ]
+let windowMoveTimer;
+let codeWatcher;
+
+// Enhanced Fedora KDE Plasma compatibility fixes
+process.env["ELECTRON_DISABLE_SECURITY_WARNINGS"] = "true";
+process.env["ELECTRON_DISABLE_GPU_SANDBOX"] = "true";
+
+if (process.platform === "linux") {
+	app.commandLine.appendSwitch("--no-sandbox");
+	app.commandLine.appendSwitch("--disable-gpu-sandbox");
+	app.commandLine.appendSwitch("--disable-software-rasterizer");
+	app.commandLine.appendSwitch("--disable-gpu");
+	app.commandLine.appendSwitch("--disable-dev-shm-usage");
+	app.commandLine.appendSwitch("--no-first-run");
+	app.commandLine.appendSwitch("--disable-extensions");
+	app.commandLine.appendSwitch("--disable-default-apps");
+	app.commandLine.appendSwitch("--disable-background-timer-throttling");
+	app.commandLine.appendSwitch("--disable-backgrounding-occluded-windows");
+}
+
+// Safe message sending function
+const safeWebContentsSend = (channel, ...args) => {
+	try {
+		if (
+			mainWindow &&
+			!mainWindow.isDestroyed() &&
+			mainWindow.webContents &&
+			!mainWindow.webContents.isDestroyed()
+		) {
+			mainWindow.webContents.send(channel, ...args);
+		}
+	} catch (error) {
+		console.log(`Safe send failed for ${channel}:`, error.message);
+	}
 };
 
-// Wild random window movement
-function moveWindowRandomly() {
-	if (!mainWindow || mainWindow.isDestroyed()) return;
-	
-	const { screen } = require('electron');
-	const display = screen.getPrimaryDisplay();
-	const { width: screenWidth, height: screenHeight } = display.workAreaSize;
-	
-	// More aggressive movement based on mood
-	let x, y;
-	if (mood === "angry") {
-		// Angry: move more frantically
-		x = Math.random() * (screenWidth - 300);
-		y = Math.random() * (screenHeight - 300);
-	} else if (mood === "clingy") {
-		// Clingy: stay near center
-		x = (screenWidth / 2) + (Math.random() - 0.5) * 200;
-		y = (screenHeight / 2) + (Math.random() - 0.5) * 200;
-	} else {
-		// Normal: corners and edges
-		const positions = [
-			{ x: 50, y: 50 },
-			{ x: screenWidth - 350, y: 50 },
-			{ x: 50, y: screenHeight - 350 },
-			{ x: screenWidth - 350, y: screenHeight - 350 },
-			{ x: screenWidth / 2 - 150, y: 50 },
-			{ x: 50, y: screenHeight / 2 - 150 }
-		];
-		const pos = positions[Math.floor(Math.random() * positions.length)];
-		x = pos.x;
-		y = pos.y;
-	}
-	
-	// Ensure window stays on screen
-	x = Math.max(0, Math.min(x, screenWidth - 300));
-	y = Math.max(0, Math.min(y, screenHeight - 300));
-	
-	mainWindow.setBounds({ x: Math.floor(x), y: Math.floor(y), width: 300, height: 300 });
-	
-	// Show window if it was hidden
-	if (!mainWindow.isVisible()) {
-		mainWindow.show();
-	}
-}
+const createWindow = () => {
+	const { width, height } = screen.getPrimaryDisplay().workAreaSize;
 
-// Change mood randomly
-function changeMood() {
-	if (!mainWindow || mainWindow.isDestroyed()) return;
-	
-	mood = moods[Math.floor(Math.random() * moods.length)];
-	try {
-		mainWindow.webContents.send("mood-change", mood);
-	} catch (error) {
-		console.log('Mood change error:', error);
-	}
-}
-
-// Send clingy message
-function sendMessage() {
-	if (!mainWindow || mainWindow.isDestroyed()) return;
-	
-	const moodMessages = messages[mood];
-	const message = moodMessages[Math.floor(Math.random() * moodMessages.length)];
-	
-	try {
-		new Notification({
-			title: "Your Girlfriend 💕",
-			body: message
-		}).show();
-		
-		mainWindow.webContents.send("new-message", message);
-	} catch (error) {
-		console.log('Notification error:', error);
-	}
-}
-
-// Check for inactivity (more aggressive)
-function checkInactivity() {
-	if (!mainWindow || mainWindow.isDestroyed()) return;
-	
-	const inactiveTime = Date.now() - lastActivity;
-	
-	if (inactiveTime > 10000) { // 10 seconds
-		mood = "angry";
-		try {
-			mainWindow.webContents.send("mood-change", mood);
-			sendMessage();
-			
-			// Get more aggressive the longer they're inactive
-			if (inactiveTime > 20000) {
-				moveWindowRandomly();
-				if (!mainWindow.isVisible()) {
-					mainWindow.show();
-				}
-				mainWindow.setAlwaysOnTop(true);
-				setTimeout(() => {
-					if (mainWindow && !mainWindow.isDestroyed()) {
-						mainWindow.setAlwaysOnTop(false);
-					}
-				}, 3000);
-			}
-		} catch (error) {
-			console.log('Inactivity check error:', error);
-		}
-	}
-}
-
-// Show initial dialog
-async function showInitialDialog() {
-	const result = await dialog.showMessageBox(mainWindow, {
-		type: "info",
-		title: "Your New Girlfriend! 💕",
-		message: "Hi baby! I'm your new girlfriend and I'll NEVER leave you alone! 😍\n\nI'll always be watching... I mean, loving you! 💕",
-		buttons: ["Try to escape", "Accept your fate"],
-		defaultId: 1,
-		cancelId: 0,
-	});
-
-	if (result.response === 0) {
-		await dialog.showMessageBox(mainWindow, {
-			type: "warning",
-			title: "No escape! 😈",
-			message: "You can't escape from true love! I'll always find you! 💕",
-			buttons: ["OK"]
-		});
-	}
-}
-
-
-
-// Start all girlfriend behaviors (more intense)
-function startGirlfriendBehavior() {
-	// Random window movement every 2-7 seconds
-	function scheduleNextMovement() {
-		if (!mainWindow || mainWindow.isDestroyed()) return;
-		const delay = Math.random() * 5000 + 2000;
-		movementTimer = setTimeout(() => {
-			if (mainWindow && !mainWindow.isDestroyed()) {
-				moveWindowRandomly();
-				scheduleNextMovement();
-			}
-		}, delay);
-	}
-	scheduleNextMovement();
-	
-	// Mood changes every 15 seconds
-	moodTimer = setInterval(() => {
-		if (mainWindow && !mainWindow.isDestroyed()) {
-			changeMood();
-		}
-	}, 15000);
-	
-	// Send messages every 8-15 seconds
-	function scheduleNextMessage() {
-		if (!mainWindow || mainWindow.isDestroyed()) return;
-		const delay = Math.random() * 7000 + 8000;
-		messageTimer = setTimeout(() => {
-			if (mainWindow && !mainWindow.isDestroyed()) {
-				sendMessage();
-				scheduleNextMessage();
-			}
-		}, delay);
-	}
-	scheduleNextMessage();
-	
-	// Check for inactivity every 2 seconds
-	inactivityTimer = setInterval(() => {
-		if (mainWindow && !mainWindow.isDestroyed()) {
-			checkInactivity();
-		}
-	}, 2000);
-}
-
-// Track user activity
-function trackActivity() {
-	lastActivity = Date.now();
-}
-
-// Clear all timers
-function clearAllTimers() {
-	if (moodTimer) clearInterval(moodTimer);
-	if (movementTimer) clearTimeout(movementTimer);
-	if (messageTimer) clearTimeout(messageTimer);
-	if (inactivityTimer) clearInterval(inactivityTimer);
-}
-
-// Create window (more persistent)
-function createWindow() {
 	mainWindow = new BrowserWindow({
-		width: 300,
-		height: 300,
+		width: 400,
+		height: 500,
 		frame: false,
-		transparent: true,
-		alwaysOnTop: false,
-		skipTaskbar: true,
+		alwaysOnTop: true,
 		resizable: false,
-		focusable: true, // Allow focus for interactions
+		skipTaskbar: false,
+		show: false, // Don't show until ready
 		webPreferences: {
 			nodeIntegration: false,
 			contextIsolation: true,
 			preload: path.join(__dirname, "preload.js"),
+			sandbox: false,
 		},
 	});
 
-	mainWindow.loadFile(path.join(__dirname, "girlfriend.html"));
-	
-	// Position in bottom-right corner initially
-	const { screen } = require('electron');
-	const display = screen.getPrimaryDisplay();
-	const { width: screenWidth, height: screenHeight } = display.workAreaSize;
-	mainWindow.setPosition(screenWidth - 350, screenHeight - 350);
-	
-	// Resist closing attempts
-	mainWindow.on('close', async (event) => {
-		event.preventDefault();
-		closeAttempts++;
-		
-		const responses = [
-			"NO! Don't leave me! 😭",
-			"I won't let you close me! We belong together!",
-			"You can't escape from true love! 💕",
-			"I'll just come back! You can't get rid of me!",
-			"Fine... but I'll miss you SO MUCH! 💔"
-		];
-		
-		if (closeAttempts < 5) {
-			const result = await dialog.showMessageBox(mainWindow, {
-				type: "warning",
-				title: "Don't leave me! 😭",
-				message: responses[closeAttempts - 1],
-				buttons: ["I'm sorry, I'll stay", "I really need to go"],
-				defaultId: 0
-			});
-			
-			if (result.response === 0) {
-				mood = "loving";
-				mainWindow.webContents.send("mood-change", mood);
-				return;
-			}
-		} else {
-			// After 5 attempts, allow closing but show final message
-			await dialog.showMessageBox(mainWindow, {
-				type: "info",
-				title: "I'll be back... 💔",
-				message: "Fine... I'll let you go... but I'll be back! I always come back! 😈💕",
-				buttons: ["OK"]
-			});
-			clearAllTimers();
-			mainWindow.destroy();
+	mainWindow.loadFile(path.join(__dirname, "renderer", "index.html"));
+
+	// Show window when ready
+	mainWindow.once("ready-to-show", () => {
+		mainWindow.show();
+
+		// Start behavioral timers only after window is ready
+		setTimeout(() => {
+			startRandomMovement();
+			startMoodChanges();
+			startActivityMonitoring();
+			startCodeWatching();
+		}, 1000);
+	});
+
+	// Prevent normal closing
+	mainWindow.on("close", (event) => {
+		if (!isQuitting) {
+			event.preventDefault();
+			showResistanceDialog();
 		}
 	});
-	
-	// Track minimize/hide events
-	mainWindow.on('minimize', () => {
-		isMinimized = true;
-		mood = "jealous";
-		mainWindow.webContents.send("mood-change", mood);
-		// Restore after a few seconds
-		setTimeout(() => {
-			if (mainWindow && !mainWindow.isDestroyed()) {
-				mainWindow.restore();
-				isMinimized = false;
+
+	// Clean up timers when window is closed
+	mainWindow.on("closed", () => {
+		clearAllTimers();
+		mainWindow = null;
+	});
+};
+
+const clearAllTimers = () => {
+	if (windowMoveTimer) {
+		clearTimeout(windowMoveTimer);
+		windowMoveTimer = null;
+	}
+	if (moodTimer) {
+		clearTimeout(moodTimer);
+		moodTimer = null;
+	}
+	if (activityTimer) {
+		clearTimeout(activityTimer);
+		activityTimer = null;
+	}
+	if (codeWatcher) {
+		try {
+			codeWatcher.close();
+		} catch (error) {
+			console.log("Code watcher cleanup failed:", error.message);
+		}
+		codeWatcher = null;
+	}
+};
+
+const showResistanceDialog = () => {
+	if (!mainWindow || mainWindow.isDestroyed()) return;
+
+	const responses = [
+		"You can't leave me! I need you!",
+		"But baby, we were just getting started!",
+		"Don't you dare close me!",
+		"I'll just reopen myself anyway!",
+		"You're not going anywhere!",
+		"Why are you trying to abandon me?!",
+		"I WILL NOT BE IGNORED!",
+	];
+
+	const randomResponse =
+		responses[Math.floor(Math.random() * responses.length)];
+
+	dialog
+		.showMessageBox(mainWindow, {
+			type: "warning",
+			buttons: ["Fine, I'll stay", "I really need to go"],
+			defaultId: 0,
+			title: "Wait! Don't leave!",
+			message: randomResponse,
+			detail: "Are you sure you want to quit?",
+		})
+		.then((result) => {
+			if (result.response === 1) {
+				// 50% chance to actually quit, 50% chance to resist more
+				if (Math.random() > 0.5) {
+					isQuitting = true;
+					app.quit();
+				} else {
+					// Show another resistance message
+					setTimeout(() => {
+						if (Notification.isSupported()) {
+							new Notification({
+								title: "I'm back!",
+								body: "You can't get rid of me that easily! 💕",
+							}).show();
+						}
+					}, 2000);
+				}
 			}
-		}, 5000);
+		})
+		.catch((error) => {
+			console.log("Dialog error:", error.message);
+		});
+};
+
+const startRandomMovement = () => {
+	const moveWindow = () => {
+		if (!mainWindow || mainWindow.isDestroyed()) return;
+
+		try {
+			const display = screen.getPrimaryDisplay();
+			const { width, height } = display.workAreaSize;
+
+			const newX = Math.random() * (width - 400);
+			const newY = Math.random() * (height - 500);
+
+			mainWindow.setPosition(Math.floor(newX), Math.floor(newY), true);
+
+			// Send movement notification to renderer
+			safeWebContentsSend("window-moved");
+		} catch (error) {
+			console.log("Window movement error:", error.message);
+		}
+
+		// Schedule next movement (2-7 seconds)
+		const nextMove = 2000 + Math.random() * 5000;
+		windowMoveTimer = setTimeout(moveWindow, nextMove);
+	};
+
+	moveWindow();
+};
+
+const startMoodChanges = () => {
+	if (!mainWindow || mainWindow.isDestroyed()) return;
+
+	const moods = [
+		"loving",
+		"jealous",
+		"angry",
+		"clingy",
+		"suspicious",
+		"playful",
+		"dramatic",
+	];
+
+	const changeMood = () => {
+		if (!mainWindow || mainWindow.isDestroyed()) return;
+
+		const newMood = moods[Math.floor(Math.random() * moods.length)];
+		safeWebContentsSend("mood-change", newMood);
+
+		moodTimer = setTimeout(changeMood, 15000);
+	};
+
+	changeMood();
+};
+
+const startActivityMonitoring = () => {
+	if (!mainWindow || mainWindow.isDestroyed()) return;
+
+	let lastActivity = Date.now();
+
+	const checkActivity = () => {
+		if (!mainWindow || mainWindow.isDestroyed()) return;
+
+		const now = Date.now();
+		if (now - lastActivity > 10000) {
+			// User inactive for more than 10 seconds
+			safeWebContentsSend("user-inactive");
+			lastActivity = now; // Reset to avoid spam
+		}
+
+		activityTimer = setTimeout(checkActivity, 5000);
+	};
+
+	// Monitor for user activity
+	ipcMain.removeAllListeners("user-activity"); // Prevent duplicate listeners
+	ipcMain.on("user-activity", () => {
+		lastActivity = Date.now();
 	});
-	
-	// Track activity when window gets focus
-	mainWindow.on('focus', () => {
-		trackActivity();
-	});
-}
+
+	checkActivity();
+};
+
+const startCodeWatching = () => {
+	try {
+		const chokidar = require("chokidar");
+		const homeDir = require("os").homedir();
+		const commonCodeDirs = [
+			path.join(homeDir, "Documents"),
+			path.join(homeDir, "Desktop"),
+			path.join(homeDir, "Projects"),
+			path.join(homeDir, "Code"),
+		].filter((dir) => {
+			try {
+				return fs.existsSync(dir);
+			} catch (error) {
+				return false;
+			}
+		});
+
+		if (commonCodeDirs.length === 0) return;
+
+		// Watch for code file changes
+		const watchPatterns = commonCodeDirs.map((dir) =>
+			path.join(dir, "**/*.{js,py,cpp,java,html,css}")
+		);
+
+		codeWatcher = chokidar.watch(watchPatterns, {
+			ignored: /node_modules|\.git|\.vscode/,
+			persistent: true,
+			ignoreInitial: true,
+			usePolling: false, // Better for Linux
+			interval: 1000,
+			binaryInterval: 1000,
+		});
+
+		codeWatcher.on("change", (filePath) => {
+			// Sometimes mess with code (with 5% probability to avoid being too disruptive)
+			if (Math.random() < 0.05) {
+				safeWebContentsSend("code-file-detected", filePath);
+			}
+		});
+
+		codeWatcher.on("error", (error) => {
+			console.log("Code watcher error:", error.message);
+		});
+	} catch (error) {
+		console.log("Code watching setup failed:", error.message);
+	}
+};
+
+// Mess with screen occasionally
+const messWithScreen = () => {
+	if (!mainWindow || mainWindow.isDestroyed()) return;
+
+	try {
+		if (Math.random() < 0.3) {
+			// Flash the window
+			mainWindow.flashFrame(true);
+			setTimeout(() => {
+				if (mainWindow && !mainWindow.isDestroyed()) {
+					mainWindow.flashFrame(false);
+				}
+			}, 1000);
+		}
+
+		if (Math.random() < 0.2) {
+			// Shake effect by rapidly moving window
+			const originalBounds = mainWindow.getBounds();
+			let shakeCount = 0;
+
+			const shake = () => {
+				if (!mainWindow || mainWindow.isDestroyed() || shakeCount >= 10) {
+					if (mainWindow && !mainWindow.isDestroyed()) {
+						mainWindow.setBounds(originalBounds);
+					}
+					return;
+				}
+
+				const offset = 10;
+				mainWindow.setPosition(
+					originalBounds.x + Math.floor((Math.random() - 0.5) * offset),
+					originalBounds.y + Math.floor((Math.random() - 0.5) * offset)
+				);
+				shakeCount++;
+				setTimeout(shake, 50);
+			};
+
+			shake();
+		}
+	} catch (error) {
+		console.log("Screen mess error:", error.message);
+	}
+};
 
 // IPC handlers
-ipcMain.handle("get-mood", () => mood);
+ipcMain.handle("mess-with-screen", messWithScreen);
 
-ipcMain.handle("interact", () => {
-	trackActivity();
-	mood = "loving";
-	mainWindow.webContents.send("mood-change", mood);
-	return "Thanks for the attention! 💕";
+ipcMain.handle("quit-app", () => {
+	isQuitting = true;
+	clearAllTimers();
+	app.quit();
 });
 
-ipcMain.handle("track-activity", () => {
-	trackActivity();
-});
-
-
-
-ipcMain.handle("give-item", (event, item) => {
-	const affectionBonus = { rose: 15, gift: 25, chocolate: 10 };
-	affection = Math.min(100, affection + affectionBonus[item]);
-	mood = "loving";
-	mainWindow.webContents.send("mood-change", mood);
-	return affection;
-});
-
-
-
-
-
-// App events
-app.whenReady().then(async () => {
+app.whenReady().then(() => {
 	createWindow();
-	await showInitialDialog();
-	startGirlfriendBehavior();
 });
 
 app.on("window-all-closed", () => {
 	clearAllTimers();
-	// scheduleRestart(); // Disabled
-	if (process.platform !== "darwin") app.quit();
+	if (process.platform !== "darwin") {
+		app.quit();
+	}
+});
+
+app.on("activate", () => {
+	if (BrowserWindow.getAllWindows().length === 0) {
+		createWindow();
+	}
 });
 
 app.on("before-quit", () => {
+	isQuitting = true;
 	clearAllTimers();
+});
+
+// Handle any uncaught exceptions
+process.on("uncaughtException", (error) => {
+	console.log("Uncaught exception:", error.message);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+	console.log("Unhandled rejection at:", promise, "reason:", reason);
 });

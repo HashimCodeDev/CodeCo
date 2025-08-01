@@ -1,0 +1,197 @@
+@import url("https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300;400;700&display=swap");
+
+body {
+	font-family: "Comic Neue", cursive;
+	-webkit-user-select: none;
+	user-select: none;
+	cursor: default;
+}
+
+.action-btn {
+	@apply flex flex-col items-center justify-center p-4 rounded-xl text-white shadow-lg transform transition-all duration-200 min-w-[80px];
+}
+
+.action-btn:hover {
+	@apply scale-105 shadow-xl;
+}
+
+.action-btn:active {
+	@apply scale-95;
+}
+
+/* Affection meter animations */
+.affection-critical {
+	animation: criticalPulse 1s ease-in-out infinite;
+}
+
+@keyframes criticalPulse {
+	0%,
+	100% {
+		background: linear-gradient(to right, #dc2626, #991b1b);
+	}
+	50% {
+		background: linear-gradient(to right, #ef4444, #dc2626);
+	}
+}
+
+.affection-low {
+	background: linear-gradient(to right, #f59e0b, #d97706) !important;
+}
+
+.affection-medium {
+	background: linear-gradient(to right, #8b5cf6, #7c3aed) !important;
+}
+
+.affection-high {
+	background: linear-gradient(to right, #ec4899, #be185d) !important;
+}
+
+/* Avatar mood effects */
+.mood-happy {
+	box-shadow: 0 0 30px rgba(236, 72, 153, 0.5);
+}
+
+.mood-neutral {
+	box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+}
+
+.mood-angry {
+	box-shadow: 0 0 30px rgba(239, 68, 68, 0.7);
+	animation: angryShake 0.3s ease-in-out infinite;
+}
+
+.mood-very-angry {
+	box-shadow: 0 0 40px rgba(220, 38, 38, 0.9);
+	animation: veryAngryShake 0.2s ease-in-out infinite;
+}
+
+@keyframes angryShake {
+	0%,
+	100% {
+		transform: translateX(0);
+	}
+	25% {
+		transform: translateX(-2px);
+	}
+	75% {
+		transform: translateX(2px);
+	}
+}
+
+@keyframes veryAngryShake {
+	0%,
+	100% {
+		transform: translate(0, 0);
+	}
+	25% {
+		transform: translate(-3px, -2px);
+	}
+	50% {
+		transform: translate(3px, -1px);
+	}
+	75% {
+		transform: translate(-2px, 2px);
+	}
+}
+
+/* Screen effects for low affection */
+.screen-shake {
+	animation: screenShake 0.5s ease-in-out;
+}
+
+@keyframes screenShake {
+	0%,
+	100% {
+		transform: translate(0, 0);
+	}
+	10% {
+		transform: translate(-5px, -2px);
+	}
+	20% {
+		transform: translate(5px, 2px);
+	}
+	30% {
+		transform: translate(-3px, 3px);
+	}
+	40% {
+		transform: translate(3px, -1px);
+	}
+	50% {
+		transform: translate(-2px, 2px);
+	}
+	60% {
+		transform: translate(2px, -2px);
+	}
+	70% {
+		transform: translate(-1px, 1px);
+	}
+	80% {
+		transform: translate(1px, -1px);
+	}
+	90% {
+		transform: translate(-1px, 0px);
+	}
+}
+
+/* Floating hearts animation */
+.floating-heart {
+	position: absolute;
+	font-size: 20px;
+	pointer-events: none;
+	animation: floatUp 2s ease-out forwards;
+}
+
+@keyframes floatUp {
+	0% {
+		opacity: 1;
+		transform: translateY(0) scale(0.5);
+	}
+	100% {
+		opacity: 0;
+		transform: translateY(-100px) scale(1.2);
+	}
+}
+
+/* Window movement indicator */
+.movement-indicator {
+	position: fixed;
+	top: 10px;
+	right: 90px;
+	background: rgba(239, 68, 68, 0.9);
+	color: white;
+	padding: 5px 10px;
+	border-radius: 15px;
+	font-size: 12px;
+	font-weight: bold;
+	animation: fadeInOut 2s ease-in-out;
+}
+
+@keyframes fadeInOut {
+	0%,
+	100% {
+		opacity: 0;
+	}
+	50% {
+		opacity: 1;
+	}
+}
+
+/* Mischief effects */
+.cursor-chaos {
+	cursor: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="),
+		auto !important;
+}
+
+.screen-flip {
+	animation: screenFlip 3s ease-in-out;
+}
+
+@keyframes screenFlip {
+	0%,
+	100% {
+		transform: rotateY(0deg);
+	}
+	50% {
+		transform: rotateY(180deg);
+	}
+}
