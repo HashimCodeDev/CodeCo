@@ -18,12 +18,15 @@ body {
 }
 
 #pet-sprite {
-  font-size: 80px;
+  width: 120px;
+  height: 120px;
   cursor: pointer;
   transition: transform 0.2s;
   pointer-events: auto;
   position: relative;
   z-index: 1000;
+  border-radius: 10px;
+  object-fit: cover;
 }
 
 #pet-sprite:hover {

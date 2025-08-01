@@ -10,11 +10,11 @@ function updateAffectionDisplay(value) {
 	affectionFill.style.width = `${value}%`;
 
 	if (value <= 30) {
-		petSprite.style.color = "#ff4444";
+		petSprite.style.filter = "hue-rotate(0deg) saturate(1.5) brightness(0.8)";
 	} else if (value <= 60) {
-		petSprite.style.color = "#ffaa44";
+		petSprite.style.filter = "hue-rotate(30deg) saturate(1.2)";
 	} else {
-		petSprite.style.color = "#44ff44";
+		petSprite.style.filter = "none";
 	}
 }
 
