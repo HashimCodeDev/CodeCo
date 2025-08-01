@@ -1,8 +1,8 @@
 {
-  "name": "codereaper",
-  "productName": "CodeReaper",
+  "name": "crazy-girlfriend-simulator",
+  "productName": "Crazy Obsessive Girlfriend Simulator",
   "version": "1.0.0",
-  "description": "Deadly BF/GF Companion for Coders - WARNING: Will delete your project!",
+  "description": "A wild and unhinged Electron application that simulates a crazy obsessive girlfriend for lonely coders - WARNING: Extremely clingy!",
   "main": "src/main.js",
   "scripts": {
     "start": "electron-forge start",

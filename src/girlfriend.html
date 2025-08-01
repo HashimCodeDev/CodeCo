@@ -30,6 +30,9 @@
             justify-content: center;
             font-size: 60px;
             transition: all 0.3s ease;
+            position: absolute;
+            top: 50px;
+            left: 75px;
         }
         .message-bubble {
             position: absolute;
@@ -45,22 +48,28 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
             opacity: 0;
             pointer-events: none;
+            z-index: 100;
         }
-        .mood-loving { background: linear-gradient(45deg, #ff69b4, #ff1493); }
-        .mood-jealous { background: linear-gradient(45deg, #32cd32, #228b22); }
-        .mood-angry { background: linear-gradient(45deg, #ff4500, #dc143c); }
-        .mood-clingy { background: linear-gradient(45deg, #9370db, #8a2be2); }
+        .mood-loving { }
+        .mood-jealous { }
+        .mood-angry { }
+        .mood-clingy { }
     </style>
 </head>
 <body>
     <div class="girlfriend-container">
         <div id="messageBubble" class="message-bubble"></div>
-        <button id="closeBtn" class="absolute top-2 right-2 text-white bg-red-500 rounded-full w-6 h-6 text-xs hover:bg-red-600" title="Close">×</button>
+        <button id="closeBtn" class="absolute top-2 right-2 text-white bg-red-500 rounded-full w-6 h-6 text-xs hover:bg-red-600 z-50" title="Close">×</button>
         <div id="avatar" class="avatar mood-loving">
             <img id="avatarGif" src="assets/happyGf.gif" alt="Girlfriend" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
         </div>
-        <div class="text-center mt-4">
-            <div id="moodText" class="text-white font-bold text-sm">Loving</div>
+        <div class="absolute bottom-4 left-0 right-0 text-center z-50">
+            <div id="moodText" class="text-black font-bold text-sm bg-white bg-opacity-90 rounded px-2 py-1 mx-auto inline-block mb-2">Loving</div>
+            <div class="flex gap-1 justify-center">
+                <button onclick="giveItem('rose')" class="bg-pink-500 text-white px-2 py-1 text-xs rounded hover:bg-pink-600">🌹</button>
+                <button onclick="giveItem('gift')" class="bg-purple-500 text-white px-2 py-1 text-xs rounded hover:bg-purple-600">🎁</button>
+                <button onclick="giveItem('chocolate')" class="bg-yellow-600 text-white px-2 py-1 text-xs rounded hover:bg-yellow-700">🍫</button>
+            </div>
         </div>
     </div>
 
@@ -70,7 +79,6 @@
         const moodText = document.getElementById('moodText');
         
         let currentMood = 'loving';
-        let isHarassmentMode = false;
 
         // Mood configurations
         const moodConfig = {
@@ -108,7 +116,14 @@
             const config = moodConfig[mood];
             const avatarGif = document.getElementById('avatarGif');
             
-            avatarGif.src = mood === 'angry' || mood === 'jealous' ? 'assets/irritatedGf.gif' : 'assets/happyGf.gif';
+            if (mood === 'angry') {
+                avatarGif.src = 'assets/angrygif';
+            } else if (mood === 'jealous') {
+                avatarGif.src = 'assets/irritatedGf.gif';
+            } else {
+                avatarGif.src = 'assets/happyGf.gif';
+            }
+            
             avatar.className = `avatar ${config.color}`;
             moodText.textContent = config.text;
             
@@ -131,21 +146,12 @@
             }
         }
 
-        // Make avatar clickable on hover
-        avatar.addEventListener('mouseenter', () => {
-            window.electronAPI.setClickable(true);
-        });
-        
-        avatar.addEventListener('mouseleave', () => {
-            window.electronAPI.setClickable(false);
-        });
-        
         // Close button
         document.getElementById('closeBtn').addEventListener('click', () => {
             window.close();
         });
         
-        // Click interaction with error handling
+        // Click interaction
         avatar.addEventListener('click', async () => {
             try {
                 const response = await window.electronAPI.interact();
@@ -162,7 +168,20 @@
             }
         });
 
-        // IPC listeners with error handling
+        // Give item function
+        async function giveItem(item) {
+            try {
+                const affection = await window.electronAPI.giveItem(item);
+                showMessage(`Thanks for the ${item}! Affection: ${affection}%`);
+            } catch (error) {
+                console.error('Give item error:', error);
+            }
+        }
+        
+        // Make giveItem globally available
+        window.giveItem = giveItem;
+
+        // IPC listeners
         try {
             window.electronAPI.onMoodChange((mood) => {
                 changeMood(mood);
@@ -178,17 +197,17 @@
         // Start animations
         startIdleAnimation();
         
-        // Initial mood setup with error handling
+        // Initial mood setup
         try {
             window.electronAPI.getMood().then(mood => {
                 changeMood(mood);
             }).catch(error => {
                 console.error('Get mood error:', error);
-                changeMood('loving'); // fallback
+                changeMood('loving');
             });
         } catch (error) {
             console.error('Initial setup error:', error);
-            changeMood('loving'); // fallback
+            changeMood('loving');
         }
     </script>
 </body>
