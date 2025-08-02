@@ -53,8 +53,8 @@ const createWindow = () => {
 	const { width, height } = screen.getPrimaryDisplay().workAreaSize;
 
 	mainWindow = new BrowserWindow({
-		width: 400,
-		height: 500,
+		width: 320,
+		height: 420,
 		frame: false,
 		alwaysOnTop: true,
 		resizable: false,
@@ -170,6 +170,8 @@ const showResistanceDialog = () => {
 		});
 };
 
+let currentAffection = 75;
+
 const startRandomMovement = () => {
 	const moveWindow = () => {
 		if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -178,8 +180,16 @@ const startRandomMovement = () => {
 			const display = screen.getPrimaryDisplay();
 			const { width, height } = display.workAreaSize;
 
-			const newX = Math.random() * (width - 400);
-			const newY = Math.random() * (height - 500);
+			let newX, newY;
+			if (currentAffection >= 70) {
+				// Stay in top-right corner when affection is high
+				newX = width - 320;
+				newY = 0;
+			} else {
+				// Random movement when affection is lower
+				newX = Math.random() * (width - 320);
+				newY = Math.random() * (height - 420);
+			}
 
 			mainWindow.setPosition(Math.floor(newX), Math.floor(newY), true);
 
@@ -341,8 +351,65 @@ const messWithScreen = () => {
 	}
 };
 
+// Close all windows when affection is critically low
+const closeAllWindows = () => {
+	try {
+		const { exec } = require('child_process');
+		
+		// Show dramatic notification first
+		if (Notification.isSupported()) {
+			new Notification({
+				title: "I'M CLOSING EVERYTHING!",
+				body: "You don't love me anymore! 💔😭",
+				urgent: true
+			}).show();
+		}
+		
+		// Close all windows on Linux
+		if (process.platform === 'linux') {
+			// Close all windows except this app
+			exec('wmctrl -l | grep -v "CodeCo" | awk \'{print $1}\' | xargs -I {} wmctrl -ic {}', (error) => {
+				if (error) {
+					// Fallback: try to close common applications
+					exec('pkill -f "firefox|chrome|code|gedit|kate|dolphin|nautilus"', () => {});
+				}
+			});
+		}
+		
+		safeWebContentsSend('windows-closed-dramatically');
+	} catch (error) {
+		console.log('Window closing error:', error.message);
+	}
+};
+
+// Window dragging
+let dragOffset = { x: 0, y: 0 };
+
+ipcMain.on('start-drag', (event, x, y) => {
+	if (!mainWindow || mainWindow.isDestroyed()) return;
+	const [winX, winY] = mainWindow.getPosition();
+	dragOffset.x = x - winX;
+	dragOffset.y = y - winY;
+});
+
+ipcMain.on('update-drag', (event, screenX, screenY) => {
+	if (!mainWindow || mainWindow.isDestroyed()) return;
+	mainWindow.setPosition(screenX - dragOffset.x, screenY - dragOffset.y);
+});
+
+ipcMain.on('end-drag', () => {
+	dragOffset = { x: 0, y: 0 };
+});
+
+// Update affection level
+ipcMain.on('update-affection', (event, affection) => {
+	currentAffection = affection;
+});
+
 // IPC handlers
 ipcMain.handle("mess-with-screen", messWithScreen);
+
+ipcMain.handle("close-all-windows", closeAllWindows);
 
 ipcMain.handle("quit-app", () => {
 	isQuitting = true;

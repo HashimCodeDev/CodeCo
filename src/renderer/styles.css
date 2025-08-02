@@ -195,3 +195,20 @@ body {
 		transform: rotateY(180deg);
 	}
 }
+
+.shake-angry {
+	animation: shakeAngry 0.3s infinite;
+}
+
+@keyframes shakeAngry {
+	0%, 100% { transform: translateX(0); }
+	10% { transform: translateX(-2px) rotate(-0.5deg); }
+	20% { transform: translateX(2px) rotate(0.5deg); }
+	30% { transform: translateX(-2px) rotate(-0.5deg); }
+	40% { transform: translateX(2px) rotate(0.5deg); }
+	50% { transform: translateX(-1px); }
+	60% { transform: translateX(1px); }
+	70% { transform: translateX(-1px); }
+	80% { transform: translateX(1px); }
+	90% { transform: translateX(0); }
+}

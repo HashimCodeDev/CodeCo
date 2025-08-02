@@ -5,6 +5,8 @@ class SimpleGirlfriend {
 		this.clickCount = 0;
 		this.mischiefTimer = null;
 		this.affectionDecayTimer = null;
+		this.hasClosedWindows = false;
+		this.soundManager = new SoundManager();
 
 		this.moods = {
 			happy: {
@@ -39,6 +41,7 @@ class SimpleGirlfriend {
 	init() {
 		this.setupEventListeners();
 		this.setupElectronListeners();
+		this.setupDragFunctionality();
 		this.startAffectionDecay();
 		this.updateDisplay();
 	}
@@ -94,10 +97,16 @@ class SimpleGirlfriend {
 		window.electronAPI.onUserInactive(() => {
 			this.handleInactivity();
 		});
+
+		// Dramatic window closing response
+		window.electronAPI.onWindowsClosedDramatically(() => {
+			this.showTemporaryMessage("I CLOSED EVERYTHING! ARE YOU HAPPY NOW?! 💔😭");
+		});
 	}
 
 	giveGift(type, points) {
 		this.affection = Math.min(100, this.affection + points);
+		this.soundManager.play('happy');
 		this.updateDisplay();
 		this.showGiftResponse(type, points);
 		this.createFloatingHearts();
@@ -204,6 +213,9 @@ class SimpleGirlfriend {
 		bar.style.width = this.affection + "%";
 		text.textContent = this.affection + "%";
 
+		// Send affection to main process for positioning
+		window.electronAPI.updateAffection(this.affection);
+
 		// Update bar color based on affection level
 		bar.className = "h-4 rounded-full transition-all duration-1000 ease-out";
 
@@ -219,6 +231,17 @@ class SimpleGirlfriend {
 		} else {
 			bar.classList.add("affection-high");
 			status.textContent = "Happy";
+		}
+
+		// Dramatic action when affection hits rock bottom
+		if (this.affection <= 10 && !this.hasClosedWindows) {
+			this.hasClosedWindows = true;
+			this.closeAllWindowsDramatically();
+		}
+
+		// Reset flag when affection recovers
+		if (this.affection > 30) {
+			this.hasClosedWindows = false;
 		}
 
 		// Update mood based on affection
@@ -243,6 +266,13 @@ class SimpleGirlfriend {
 	changeMood(newMood) {
 		this.currentMood = newMood;
 		const mood = this.moods[newMood];
+
+		// Play mood sound
+		if (newMood === 'very_angry') {
+			this.soundManager.play('scream');
+		} else if (newMood === 'angry') {
+			this.soundManager.play('gasp');
+		}
 
 		// Update GIF
 		this.changeAvatarGif(mood.gif);
@@ -301,16 +331,18 @@ class SimpleGirlfriend {
 		if (this.mischiefTimer) return;
 
 		this.showTemporaryMessage("I'm going to cause some trouble! 😈");
+		document.getElementById('app').classList.add('shake-angry');
 
 		this.mischiefTimer = setInterval(() => {
 			this.causeMischief();
-		}, 5000); // Mischief every 5 seconds
+		}, 3000); // Mischief every 3 seconds when angry
 	}
 
 	stopMischief() {
 		if (this.mischiefTimer) {
 			clearInterval(this.mischiefTimer);
 			this.mischiefTimer = null;
+			document.getElementById('app').classList.remove('shake-angry');
 			this.showTemporaryMessage("Okay, I'll be good now! 😇");
 		}
 	}
@@ -321,6 +353,7 @@ class SimpleGirlfriend {
 			"moveWindow",
 			"flashScreen",
 			"changeCursor",
+			"randomMove",
 		];
 
 		const mischief =
@@ -331,6 +364,7 @@ class SimpleGirlfriend {
 				this.shakeScreen();
 				break;
 			case "moveWindow":
+			case "randomMove":
 				window.electronAPI.messWithScreen();
 				this.showMovementIndicator();
 				break;
@@ -414,8 +448,54 @@ class SimpleGirlfriend {
 
 	handleInactivity() {
 		this.affection = Math.max(0, this.affection - 5);
+		this.soundManager.play('gasp');
 		this.updateDisplay();
 		this.showTemporaryMessage("Hey! Pay attention to me! 😤");
+	}
+
+	closeAllWindowsDramatically() {
+		this.soundManager.play('heartbreak');
+		this.showTemporaryMessage("FINE! If you don't love me, I'll close EVERYTHING! 💔😭");
+		
+		// Dramatic countdown
+		let countdown = 3;
+		const countdownInterval = setInterval(() => {
+			if (countdown > 0) {
+				this.soundManager.play('gasp');
+				this.showTemporaryMessage(`Closing all windows in ${countdown}... 😈`);
+				countdown--;
+			} else {
+				clearInterval(countdownInterval);
+				this.soundManager.play('slam');
+				window.electronAPI.closeAllWindows();
+			}
+		}, 1000);
+	}
+
+	setupDragFunctionality() {
+		const titleBar = document.getElementById('title-bar');
+		let isDragging = false;
+		let dragOffset = { x: 0, y: 0 };
+
+		titleBar.addEventListener('mousedown', (e) => {
+			isDragging = true;
+			dragOffset.x = e.clientX;
+			dragOffset.y = e.clientY;
+			window.electronAPI.startDrag(dragOffset.x, dragOffset.y);
+		});
+
+		document.addEventListener('mousemove', (e) => {
+			if (isDragging) {
+				window.electronAPI.updateDrag(e.screenX, e.screenY);
+			}
+		});
+
+		document.addEventListener('mouseup', () => {
+			if (isDragging) {
+				isDragging = false;
+				window.electronAPI.endDrag();
+			}
+		});
 	}
 
 	resistClosing() {
