@@ -77,8 +77,7 @@ _Desktop integration features including notifications and system tray functional
 
 # Video
 
-![Demo Video](https://drive.google.com/file/d/1GtRz10uejeLZXRievQXg1lIP7drTBmG1/view?usp=sharing)
-_Full Working Demo Video_
+[Watch Demo Video](https://drive.google.com/file/d/1GtRz10uejeLZXRievQXg1lIP7drTBmG1/view?usp=sharing)_Full Working Demo Video_
 
 ## Team Contributions
 
