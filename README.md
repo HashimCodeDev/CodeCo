@@ -4,7 +4,7 @@
 
 ## Basic Details
 
-### Team Name: Solo Dev Squad
+### Team Name: Code & Cuddles
 
 ### Team Members
 
@@ -77,7 +77,7 @@ _Desktop integration features including notifications and system tray functional
 
 # Video
 
-![Demo Video](files/Screencast_20250802_071858.mp4)
+![Demo Video](https://drive.google.com/file/d/1GtRz10uejeLZXRievQXg1lIP7drTBmG1/view?usp=sharing)
 _Full Working Demo Video_
 
 ## Team Contributions
